@@ -222,6 +222,13 @@ function moveGhost( game, g ) {
   wrapTunnel( g, width );
 }
 
+function releaseGhost( game, g ) {
+  g.inPen = false;
+  g.x = GHOST_EXIT.x;
+  g.y = GHOST_EXIT.y;
+  g.dir = 'left';
+}
+
 function resetPositions( game ) {
   const p = game.pacman;
   p.x = PACMAN_START.x;

@@ -215,6 +215,16 @@ function decideClyde( game, g ) {
   }
 }
 
+function decideFrightened( game, g ) {
+  const choices = ghostOptions( game, g );
+  return choices[ Math.floor( Math.random() * choices.length ) ];
+}
+
+function decideEyes( game, g ) {
+  const choices = ghostOptions( game, g );
+  g.dir = pickBestDir( choices, g, PEN_CENTER.x, PEN_CENTER.y );
+}
+
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
@@ -223,22 +233,37 @@ function moveGhost( game, g ) {
     g.x = Math.round( g.x );
     g.y = Math.round( g.y );
     if ( !g.inPen ) {
-      if ( g.kind === 'blinky' ) decideBlinky( game, g );
-      else if ( g.kind === 'pinky' ) decidePinky( game, g );
-      else if ( g.kind === 'inky' ) decideInky( game, g );
-      else if ( g.kind === 'clyde' ) decideClyde( game, g );
+      if ( g.mode === 'frightened' ) {
+        g.dir = decideFrightened( game, g );
+      } else if ( g.mode === 'eyes' ) {
+        if ( g.x === PEN_CENTER.x && g.y === PEN_CENTER.y ) {
+          releaseGhost( game, g );
+        } else {
+          decideEyes( game, g );
+        }
+      } else if ( g.kind === 'blinky' ) {
+        decideBlinky( game, g );
+      } else if ( g.kind === 'pinky' ) {
+        decidePinky( game, g );
+      } else if ( g.kind === 'inky' ) {
+        decideInky( game, g );
+      } else if ( g.kind === 'clyde' ) {
+        decideClyde( game, g );
+      }
     }
     if ( !canMove( grid, g.x, g.y, g.dir, 'ghost' ) ) return;
   }
 
   const d = DIRS[ g.dir ];
-  g.x += d.x * g.speed;
-  g.y += d.y * g.speed;
+  const speed = g.mode === 'frightened' ? FRIGHTENED_SPEED : g.speed;
+  g.x += d.x * speed;
+  g.y += d.y * speed;
   wrapTunnel( g, width );
 }
 
 function releaseGhost( game, g ) {
   g.inPen = false;
+  g.mode = 'chase';
   g.x = GHOST_EXIT.x;
   g.y = GHOST_EXIT.y;
   g.dir = 'left';

@@ -253,7 +253,7 @@ function update( game ) {
   game.elapsedMs += 16.67;
 
   game.ghosts.forEach( ( g ) => {
-    if ( g.inPen && game.elapsedMs >= g.releaseTime ) g.inPen = false;
+    if ( g.inPen && game.elapsedMs >= g.releaseTime ) releaseGhost( game, g );
   } );
 
   movePacman( game );

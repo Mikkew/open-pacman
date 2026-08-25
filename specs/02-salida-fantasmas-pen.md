@@ -1,6 +1,6 @@
 # SPEC 02 — Salida de los fantasmas de la pen
 
-> **Estado:** Aprovado
+> **Estado:** Implementado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-08-25
 > **Objetivo:** Corregir la salida de los fantasmas de la pen: al liberarse se teletransportan a la celda `(13, 11)`, fuera de la pen, con dirección `'left'` y desde ahí arranca su IA de persecución.

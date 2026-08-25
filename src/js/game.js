@@ -12,6 +12,11 @@ const OPPOSITE = { left: 'right', right: 'left', up: 'down', down: 'up' };
 
 const PACMAN_SPEED = 0.125; // 1/8 celda/frame -> alinea cada 8 frames
 const GHOST_SPEED = 0.1;    // 1/10 celda/frame
+const FRIGHTENED_SPEED = 0.05; // 1/20 celda/frame -> alinea a celda entera
+
+const POWER_PELLET_SCORE = 50;
+const FRIGHTENED_DURATION = 6000; // ms
+const GHOST_EAT_SCORES = [ 200, 400, 800, 1600 ];
 
 // Crea una partida nueva. Copia MAZE (pristino) a game.grid para poder comer
 // dots sin destruir el original, y reiniciar.
@@ -21,7 +26,7 @@ function createGame() {
   grid[ PACMAN_START.y ][ PACMAN_START.x ] = 0;
 
   let dots = 0;
-  for ( const row of grid ) for ( const v of row ) if ( v === 2 ) dots++;
+  for ( const row of grid ) for ( const v of row ) if ( v === 2 || v === 4 ) dots++;
 
   return {
     elapsedMs: 0,
@@ -29,6 +34,8 @@ function createGame() {
     score: 0,
     lives: 3,
     dotsRemaining: dots,
+    frightenedMs: 0,
+    ghostEatCombo: 0,
     grid,
     pacman: {
       x: PACMAN_START.x,
@@ -45,6 +52,7 @@ function createGame() {
       kind: g.kind,
       inPen: true,
       releaseTime: i * 1500,
+      mode: 'chase',
     } ) ),
   };
 }
@@ -102,6 +110,13 @@ function movePacman( game ) {
       grid[ p.y ][ p.x ] = 0;
       game.score += 10;
       game.dotsRemaining--;
+    }
+    // Comer power pellet.
+    if ( grid[ p.y ][ p.x ] === 4 ) {
+      grid[ p.y ][ p.x ] = 0;
+      game.score += POWER_PELLET_SCORE;
+      game.dotsRemaining--;
+      startFrightened( game );
     }
     // Si no puede seguir, se detiene en la celda.
     if ( !canMove( grid, p.x, p.y, p.dir, 'pacman' ) ) return;
@@ -200,6 +215,16 @@ function decideClyde( game, g ) {
   }
 }
 
+function decideFrightened( game, g ) {
+  const choices = ghostOptions( game, g );
+  return choices[ Math.floor( Math.random() * choices.length ) ];
+}
+
+function decideEyes( game, g ) {
+  const choices = ghostOptions( game, g );
+  g.dir = pickBestDir( choices, g, PEN_CENTER.x, PEN_CENTER.y );
+}
+
 function moveGhost( game, g ) {
   const grid = game.grid;
   const width = grid[ 0 ].length;
@@ -208,25 +233,50 @@ function moveGhost( game, g ) {
     g.x = Math.round( g.x );
     g.y = Math.round( g.y );
     if ( !g.inPen ) {
-      if ( g.kind === 'blinky' ) decideBlinky( game, g );
-      else if ( g.kind === 'pinky' ) decidePinky( game, g );
-      else if ( g.kind === 'inky' ) decideInky( game, g );
-      else if ( g.kind === 'clyde' ) decideClyde( game, g );
+      if ( g.mode === 'frightened' ) {
+        g.dir = decideFrightened( game, g );
+      } else if ( g.mode === 'eyes' ) {
+        if ( g.x === PEN_CENTER.x && g.y === PEN_CENTER.y ) {
+          releaseGhost( game, g );
+        } else {
+          decideEyes( game, g );
+        }
+      } else if ( g.kind === 'blinky' ) {
+        decideBlinky( game, g );
+      } else if ( g.kind === 'pinky' ) {
+        decidePinky( game, g );
+      } else if ( g.kind === 'inky' ) {
+        decideInky( game, g );
+      } else if ( g.kind === 'clyde' ) {
+        decideClyde( game, g );
+      }
     }
     if ( !canMove( grid, g.x, g.y, g.dir, 'ghost' ) ) return;
   }
 
   const d = DIRS[ g.dir ];
-  g.x += d.x * g.speed;
-  g.y += d.y * g.speed;
+  const speed = g.mode === 'frightened' ? FRIGHTENED_SPEED : g.speed;
+  g.x += d.x * speed;
+  g.y += d.y * speed;
   wrapTunnel( g, width );
 }
 
 function releaseGhost( game, g ) {
   g.inPen = false;
+  g.mode = 'chase';
   g.x = GHOST_EXIT.x;
   g.y = GHOST_EXIT.y;
   g.dir = 'left';
+}
+
+function startFrightened( game ) {
+  game.frightenedMs = FRIGHTENED_DURATION;
+  game.ghostEatCombo = 0;
+  game.ghosts.forEach( ( g ) => {
+    if ( g.inPen || g.mode === 'eyes' ) return;
+    g.mode = 'frightened';
+    g.dir = OPPOSITE[ g.dir ];
+  } );
 }
 
 function resetPositions( game ) {
@@ -236,11 +286,14 @@ function resetPositions( game ) {
   p.dir = 'left';
   p.nextDir = null;
   game.elapsedMs = 0;
+  game.frightenedMs = 0;
+  game.ghostEatCombo = 0;
   game.ghosts.forEach( ( g, i ) => {
     g.x = GHOST_STARTS[ i ].x;
     g.y = GHOST_STARTS[ i ].y;
     g.dir = 'up';
     g.inPen = true;
+    g.mode = 'chase';
     g.releaseTime = i * 1500;
   } );
 }
@@ -251,6 +304,16 @@ function collides( a, b ) {
 
 function update( game ) {
   game.elapsedMs += 16.67;
+
+  if ( game.frightenedMs > 0 ) {
+    game.frightenedMs -= 16.67;
+    if ( game.frightenedMs <= 0 ) {
+      game.frightenedMs = 0;
+      game.ghosts.forEach( ( g ) => {
+        if ( g.mode === 'frightened' ) g.mode = 'chase';
+      } );
+    }
+  }
 
   game.ghosts.forEach( ( g ) => {
     if ( g.inPen && game.elapsedMs >= g.releaseTime ) releaseGhost( game, g );
@@ -263,15 +326,21 @@ function update( game ) {
 
   for ( const g of game.ghosts ) {
     if ( g.inPen ) continue;
-    if ( collides( game.pacman, g ) ) {
-      game.lives--;
-      if ( game.lives <= 0 ) {
-        game.state = 'lost';
-        return;
-      }
-      resetPositions( game );
-      break;
+    if ( !collides( game.pacman, g ) ) continue;
+    if ( g.mode === 'eyes' ) continue;
+    if ( g.mode === 'frightened' ) {
+      game.score += GHOST_EAT_SCORES[ game.ghostEatCombo ];
+      game.ghostEatCombo++;
+      g.mode = 'eyes';
+      continue;
     }
+    game.lives--;
+    if ( game.lives <= 0 ) {
+      game.state = 'lost';
+      return;
+    }
+    resetPositions( game );
+    break;
   }
 
   if ( game.dotsRemaining <= 0 ) game.state = 'won';

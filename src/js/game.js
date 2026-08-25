@@ -237,6 +237,16 @@ function releaseGhost( game, g ) {
   g.dir = 'left';
 }
 
+function startFrightened( game ) {
+  game.frightenedMs = FRIGHTENED_DURATION;
+  game.ghostEatCombo = 0;
+  game.ghosts.forEach( ( g ) => {
+    if ( g.inPen || g.mode === 'eyes' ) return;
+    g.mode = 'frightened';
+    g.dir = OPPOSITE[ g.dir ];
+  } );
+}
+
 function resetPositions( game ) {
   const p = game.pacman;
   p.x = PACMAN_START.x;
@@ -259,6 +269,16 @@ function collides( a, b ) {
 
 function update( game ) {
   game.elapsedMs += 16.67;
+
+  if ( game.frightenedMs > 0 ) {
+    game.frightenedMs -= 16.67;
+    if ( game.frightenedMs <= 0 ) {
+      game.frightenedMs = 0;
+      game.ghosts.forEach( ( g ) => {
+        if ( g.mode === 'frightened' ) g.mode = 'chase';
+      } );
+    }
+  }
 
   game.ghosts.forEach( ( g ) => {
     if ( g.inPen && game.elapsedMs >= g.releaseTime ) releaseGhost( game, g );

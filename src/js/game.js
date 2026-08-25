@@ -286,11 +286,14 @@ function resetPositions( game ) {
   p.dir = 'left';
   p.nextDir = null;
   game.elapsedMs = 0;
+  game.frightenedMs = 0;
+  game.ghostEatCombo = 0;
   game.ghosts.forEach( ( g, i ) => {
     g.x = GHOST_STARTS[ i ].x;
     g.y = GHOST_STARTS[ i ].y;
     g.dir = 'up';
     g.inPen = true;
+    g.mode = 'chase';
     g.releaseTime = i * 1500;
   } );
 }
@@ -323,15 +326,21 @@ function update( game ) {
 
   for ( const g of game.ghosts ) {
     if ( g.inPen ) continue;
-    if ( collides( game.pacman, g ) ) {
-      game.lives--;
-      if ( game.lives <= 0 ) {
-        game.state = 'lost';
-        return;
-      }
-      resetPositions( game );
-      break;
+    if ( !collides( game.pacman, g ) ) continue;
+    if ( g.mode === 'eyes' ) continue;
+    if ( g.mode === 'frightened' ) {
+      game.score += GHOST_EAT_SCORES[ game.ghostEatCombo ];
+      game.ghostEatCombo++;
+      g.mode = 'eyes';
+      continue;
     }
+    game.lives--;
+    if ( game.lives <= 0 ) {
+      game.state = 'lost';
+      return;
+    }
+    resetPositions( game );
+    break;
   }
 
   if ( game.dotsRemaining <= 0 ) game.state = 'won';

@@ -222,6 +222,13 @@ function moveGhost( game, g ) {
   wrapTunnel( g, width );
 }
 
+function releaseGhost( game, g ) {
+  g.inPen = false;
+  g.x = GHOST_EXIT.x;
+  g.y = GHOST_EXIT.y;
+  g.dir = 'left';
+}
+
 function resetPositions( game ) {
   const p = game.pacman;
   p.x = PACMAN_START.x;
@@ -246,7 +253,7 @@ function update( game ) {
   game.elapsedMs += 16.67;
 
   game.ghosts.forEach( ( g ) => {
-    if ( g.inPen && game.elapsedMs >= g.releaseTime ) g.inPen = false;
+    if ( g.inPen && game.elapsedMs >= g.releaseTime ) releaseGhost( game, g );
   } );
 
   movePacman( game );

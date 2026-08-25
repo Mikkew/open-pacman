@@ -50,6 +50,7 @@ function parseTile( ch ) {
 const MAZE = MAZE_STR.map( ( row ) => row.split( '' ).map( parseTile ) );
 
 const TUNNEL_ROW = 14;
+const GHOST_EXIT = { x: 13, y: 11 };
 const PACMAN_START = { x: 13, y: 23 };
 const GHOST_STARTS = [
   { x: 14, y: 12, kind: 'blinky' },
@@ -60,5 +61,6 @@ const GHOST_STARTS = [
 
 window.MAZE = MAZE;
 window.TUNNEL_ROW = TUNNEL_ROW;
+window.GHOST_EXIT = GHOST_EXIT;
 window.PACMAN_START = PACMAN_START;
 window.GHOST_STARTS = GHOST_STARTS;
